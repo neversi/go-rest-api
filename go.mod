@@ -1,4 +1,4 @@
-module gitlab.com/quybit
+module gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd
 
 go 1.15
 
