@@ -1,0 +1,5 @@
+{
+        "bind_port":":8080",
+        "log_file":"log.txt",
+        "db_url":"port=5432 host=localhost user=abdr password=qwerty123 dbname=abdr sslmode=disable"
+}
