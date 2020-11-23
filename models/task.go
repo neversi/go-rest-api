@@ -10,7 +10,7 @@ type Task struct {
 	ID 		uint   "json:\"id\" gorm:\"primaryKey\""
 	UserRefer	uint   "json:\"user_id\""
 	User		User	"gorm:\"foreignKey:UserRefer\""
-	Title    	string "json:\"title\" gorm:\"not null;unique\""
+	Title    	string "json:\"title\" gorm:\"not null\""
 	Text     	string "json:\"text\" gorm:\"not null\""
 	Category 	string "json:\"category\" gorm:\"not null\""
 	Author   	string "json:\"author\" gorm:\"not null\""

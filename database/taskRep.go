@@ -1,6 +1,12 @@
 package database
 
-import "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
+import (
+	"encoding/json"
+	"fmt"
+
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
+	"gorm.io/gorm"
+)
 
 // TaskRep ...
 type TaskRep struct {
@@ -25,12 +31,28 @@ func (tr *TaskRep) Create(t *models.Task) (*models.Task, error) {
 	return t, nil
 }
 
+// Read retrieves all tasks related to t
+func (tr *TaskRep) Read(t *models.Task) ([]*models.Task, error) {
+	currentDB := tr.db.Pdb
+	tasks := make([]*models.Task, 0)
+	var result *gorm.DB
+	if (t == nil) {
+		result = currentDB.Table("tasks").Select("*").Find(&tasks)
+	} else {
+		result = currentDB.Model(&models.Task{}).Where("user_refer = ?", t.UserRefer).Find(&tasks)
+	}
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return tasks, nil
+}
+
 // Delete the task
-func (tr *TaskRep) Delete(id uint) error {
+func (tr *TaskRep) Delete(t *models.Task) error {
 	currentDB := tr.db.Pdb
 
 	tr.db.Lock()
-	currentDB.Where("id = ?", id).Delete(&models.Task{})
+	currentDB.Where("id = ?", t.ID).Delete(&models.Task{})
 	tr.db.Unlock()
 
 	return nil
@@ -40,20 +62,40 @@ func (tr *TaskRep) Delete(id uint) error {
 func (tr *TaskRep) Update(t *models.Task) (*models.Task, error) {
 	currentDB := tr.db.Pdb
 
-	if err := t.Validate(); err != nil {
-		return nil, err	
-	}
+	var oldObj = new(models.Task)
 
-	var substitute *models.Task
+	result := currentDB.Table("tasks").Where("id = ?", t.ID).First(&models.Task{})
+
 	
-	err := currentDB.Where("id = ?", t.ID).First(substitute).Error
-	if err != nil {
-		return nil, err 
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
+	var updateMap, oldMap map[string]interface{}
+	oldBytes, err := json.Marshal(oldObj)
+	_ = json.Unmarshal(oldBytes, &oldMap)
+	newBytes, err := json.Marshal(t)
+	_ = json.Unmarshal(newBytes, &updateMap)
+
+	for key, value := range updateMap {
+		if value.(string) != "" {
+			fmt.Println("Here")
+			oldMap[key] = updateMap[key]
+		}
+	}
+
+	newBytes, err = json.Marshal(oldMap)
+	_ = json.Unmarshal(newBytes, &oldObj)
+	fmt.Println(t, string(newBytes))
+	if err := t.Validate(); err != nil {
+		return nil, err
+	}
 	tr.db.Lock()
-	substitute = t
+	if err = tr.db.Pdb.Model(&models.Task{}).Where("id = ?", t.ID).Save(&oldObj).Error;
+	err != nil {
+		return nil, err
+	}
 	tr.db.Unlock()
 	
-	return substitute, nil
+	return t, nil
 }

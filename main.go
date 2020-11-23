@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	// "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
@@ -8,7 +9,14 @@ import (
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/server"
 )
 
+var configPath string
+
+func init() { 
+	flag.StringVar(&configPath, "configPath", "config.json", "configure file which contains certain details")
+}
+
 func main() {
+	flag.Parse()
 	fmt.Println("Hello lets start our server...")
 
 	api, err := server.New()

@@ -3,7 +3,7 @@ package database
 import (
 	// "fmt"
 
-	"fmt"
+	"encoding/json"
 
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
 	"gorm.io/gorm"
@@ -42,30 +42,32 @@ func (ur *UserRep) Create(u *models.User) (*models.User, error) {
 // Read retrieves the user(s) from table users
 func (ur *UserRep) Read(u *models.User) ([]*models.User, error) {
 	currentDB := ur.DB.Pdb
+	users := make([]*models.User, 0)
 	var result *gorm.DB
 	if u == nil {
-		result = currentDB.Table("users").Select("*")
+		result = currentDB.Table("users").Select("*").Find(&users)
 	} else {
-		result = currentDB.Where("login = ?", u.Login).Find(&models.User{})
+		result = currentDB.Where("login = ?", u.Login).First(&users)
 	}
-	sqlResult, err := result.Rows()
-	if err != nil {
-		return nil, err
+	if result.Error != nil {
+		return nil, result.Error
 	}
-	users := make([]*models.User, 0)
+	// sqlResult, err := result.Rows()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	for sqlResult.Next() {
-		user := new(models.User)
-		err := sqlResult.Scan(&user.ID, &user.Login, &user.Password, &user.FirstName, &user.SurName, &user.Email)
-		if err != nil {
-			return nil, err
-		}
-		user.Password = "NULL"
-		users = append(users, user)
-	}
-	if err = sqlResult.Err(); err != nil {
-		return nil, err
-	}
+	// for sqlResult.Next() {
+	// 	user := new(models.User)
+	// 	err := sqlResult.Scan(&user.ID, &user.Login, &user.Password, &user.FirstName, &user.SurName, &user.Email)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	users = append(users, user)
+	// }
+	// if err = sqlResult.Err(); err != nil {
+	// 	return nil, err
+	// }
 	return users, nil
 }
 
@@ -73,43 +75,58 @@ func (ur *UserRep) Read(u *models.User) ([]*models.User, error) {
 func (ur *UserRep) Update(u *models.User) (*models.User, error) {
 	currentDB := ur.DB.Pdb
 
-	encrypted, err := EncryptString(u.Password)
-	if err != nil {
-		return nil, err
-	}
 	var user = new(models.User)
 	var result *gorm.DB
-	if result = currentDB.Table("users").Select("*").Where("login = ?", u.Login); result.Error != nil {
+	if result = currentDB.Table("users").Select("*").Where("login = ?", u.Login).First(&models.User{}); result.Error != nil {
 		return nil, result.Error
 	}
 	res := result.Row()
-	res.Scan(&user.Login)
-	fmt.Print(u.Email, " |", user.Login, "| ", u.Login)
-	if err = u.Validate(); err != nil {
-		return nil, err	
-	}
+	res.Scan(&user.ID, &user.Login, &user.Password, &user.FirstName, &user.SurName, &user.Email)
 
-	u.Password = encrypted
-
-	var substitute *models.User
 	
 	ur.DB.Lock()
-	currentDB.Table("users").Where("login = ?", u.Login).Update("email", u.Email)
-	currentDB.Model(&models.User{}).Where("login = ?", u.Login).Update("first_name", u.FirstName)
-	currentDB.Model(&models.User{}).Where("login = ?", u.Login).Update("sur_name", u.SurName)
-	currentDB.Model(&models.User{}).Where("login = ?", u.Login).Update("password", u.Password)
+	var updates, oldMap map[string]interface{}
+	oldRec, _ := json.Marshal(user)
+	_ = json.Unmarshal(oldRec, &oldMap)
+	newRec, _ := json.Marshal(u)
+	_ = json.Unmarshal(newRec, &updates)
+	changedPassword := false;
+	for key, value := range updates {
+		if key == "password" && value != "" {
+			changedPassword = true;
+		}
+		if value == "" {
+			updates[key] = oldMap[key]
+		}
+	}
+	newRec, _ = json.Marshal(updates)
+	_ = json.Unmarshal(newRec, &u)
+
+	if err := u.Validate(); err != nil {
+		return nil, err
+	}
+	
+	if changedPassword == true {
+		encrypted, err := EncryptString(updates["password"].(string))
+		if err != nil {
+			return nil, err
+		}
+		u.Password = encrypted
+	}
+
+	ur.DB.Pdb.Table("users").Where("login = ? ", u.Login).Save(&u)
+
 	ur.DB.Unlock()
 
-	currentDB.Where(u.ID).First(&models.User{})
-	return substitute, nil
+	return u, nil
 }
 
 // Delete user by the login parameter
 func (ur *UserRep) Delete(u *models.User) error {
 	currentDB := ur.DB.Pdb
 
-	ur.DB.Lock()
-	currentDB.Where("login = ?", u.Login).Delete(&models.User{})
+		ur.DB.Lock()
+		currentDB.Where("login = ?", u.Login).Delete(&models.User{})
 	ur.DB.Unlock()
 
 	return nil

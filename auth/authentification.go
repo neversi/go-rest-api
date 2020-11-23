@@ -1,4 +1,4 @@
-package database
+package auth
 
 import (
 	"context"
@@ -15,9 +15,10 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	redis "github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+
 	// "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
-	
 )
 
 // DB here
@@ -95,14 +96,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if valid, _ := CompareHash(checkUser.Password, u.Password); valid !=  true  {
+	if valid, _ := database.CompareHash(checkUser.Password, u.Password); valid !=  true  {
 		w.Write([]byte("StatusUnauthorized"));
 		w.WriteHeader(http.StatusUnauthorized);
 		return
 	}
 	token, err := CreateToken(u.ID)
 
-	
+	CreateAuth(u.ID, token)
 	_ = token
 }
 
@@ -112,7 +113,7 @@ func CreateToken(id uint) (*TokenDetails, error) {
 	var err error
 	token.AExp = time.Now().Add(time.Minute * 15).Unix()
 	token.AUuid = uuid.New().String()
-	token.RExp = time.Now().Add(time.Hour * 24 * 7).Unix()
+	token.RExp = time.Now().Add(time.Hour * 24).Unix()
 	token.RUuid = uuid.New().String()
 
 	envSecret := "abdr_go_to_env"
@@ -125,7 +126,7 @@ func CreateToken(id uint) (*TokenDetails, error) {
 	AClaims["exp"] = token.AExp
 	atoken := jwt.NewWithClaims(jwt.SigningMethodHS256, AClaims)
 
-	token.AToken, err = atoken.SignedString(envSecret)
+	token.AToken, err = atoken.SignedString([]byte(envSecret))
 	if err != nil {
 		err = fmt.Errorf("signing error")
 		return nil, err
@@ -138,7 +139,7 @@ func CreateToken(id uint) (*TokenDetails, error) {
 	RClaims["exp"] = token.RExp
 	rtoken := jwt.NewWithClaims(jwt.SigningMethodHS256, RClaims)
 	
-	token.RToken, err = rtoken.SignedString(envSecret)
+	token.RToken, err = rtoken.SignedString([]byte(envSecret))
 	if err != nil {
 		err = fmt.Errorf("signing error")
 		return nil, err
@@ -148,7 +149,7 @@ func CreateToken(id uint) (*TokenDetails, error) {
 }
 
 //CreateAuth creates a valid token in cached db
-func CreateAuth(id int64, token *TokenDetails) error {
+func CreateAuth(id uint, token *TokenDetails) error {
 	at := time.Unix(token.AExp, 0)
 	rt := time.Unix(token.RExp, 0)
 	err := rdb.Set(ctx, token.AUuid, strconv.Itoa(int(id)), at.Sub(time.Now())).Err()
@@ -175,20 +176,24 @@ func ExtractToken(r *http.Request) string {
 
 	if (len(subArr) == 2) {
 		return subArr[1]
+	} else if len(subArr) == 1 {
+		return subArr[0]
 	}
 
 	return ""
 }
 
-func verifyToken(r *http.Request) (*jwt.Token, error) {
-	tokenString := ExtractToken(r)
+// VerifyToken verifies if token is exist or not
+func VerifyToken(r *http.Request) (*jwt.Token, error) {
+	// tokenString := ExtractToken(r)
+	tokenString := r.Header.Get("Authorization")
 	token, err := jwt.Parse(tokenString, func (token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 
 		}
 
-		return []byte(os.Getenv("secret")), nil
+		return []byte("abdr_go_to_env"), nil
 	})
 	if err != nil {
 		return nil, err
@@ -199,7 +204,7 @@ func verifyToken(r *http.Request) (*jwt.Token, error) {
 
 // TokenValid ...
 func TokenValid(r *http.Request) (error) {
-	token, err := verifyToken(r)
+	token, err := VerifyToken(r)
 	if err != nil {
 		return err
 	}
@@ -213,7 +218,7 @@ func TokenValid(r *http.Request) (error) {
 
 // ExtractTokenData ... 
 func ExtractTokenData(r *http.Request) (*AccessToken, error) {
-	token, err := verifyToken(r)
+	token, err := VerifyToken(r)
 
 	if err != nil {
 		return nil, err
@@ -329,7 +334,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusExpectationFailed)
 		}
 
-		err = CreateAuth(int64(userIDInt), refreshedTokens)
+		err = CreateAuth(uint(userIDInt), refreshedTokens)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "Cannot authorize token")
