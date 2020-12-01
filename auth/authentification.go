@@ -1,54 +1,20 @@
 package auth
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	redis "github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 
-	// "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
-	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
 )
 
-// DB here
-type DB struct {
-	db *sql.DB
-}
-
-var (
-	ctx = context.Background()
-	rdb = redis.NewClient(&redis.Options{
-			Addr: "localhost: 5404",
-			DB: 0,
-			Password: "",
-	})
-)
-
-func (db *DB) findUser(login string) (*models.User, error) {
-	return nil, nil
-} 
-
-func (db *DB) getUser(login string) (*models.User, error) {
-	
-	u, err := db.findUser(login)
-	if err != nil {
-		err = fmt.Errorf("The user with such login does not exist")
-		return nil, err
-	}
-	
-	return u, nil
-}
 
 // TokenDetails structure with info about access and refresh tokens
 type TokenDetails struct {
@@ -64,47 +30,6 @@ type TokenDetails struct {
 type AccessToken struct {
 	AUuid string
 	Userid string
-}
-
-// RefreshToken ...
-type RefreshToken struct {
-	RUuid string
-	Userid string
-}
-
-
-
-// Login func validates login and password and returns the token
-func Login(w http.ResponseWriter, r *http.Request) {
-	var u = models.User{}
-	bodyBytes, err := ioutil.ReadAll(r.Body);
-	if err != nil {
-		err = fmt.Errorf("Cannot read the error")
-		return
-	}
-
-	err = json.Unmarshal(bodyBytes, &u)
-	if err != nil {
-		err = fmt.Errorf("Cannot read the error")
-		return
-	}
-
-	db := DB{}
-	checkUser, err := db.getUser(u.Login)
-	if err != nil {
-		err = fmt.Errorf("Cannot read the error")
-		return
-	}
-	
-	if valid, _ := database.CompareHash(checkUser.Password, u.Password); valid !=  true  {
-		w.Write([]byte("StatusUnauthorized"));
-		w.WriteHeader(http.StatusUnauthorized);
-		return
-	}
-	token, err := CreateToken(u.ID)
-
-	CreateAuth(u.ID, token)
-	_ = token
 }
 
 // CreateToken creates an access and refresh tokens
@@ -149,19 +74,17 @@ func CreateToken(id uint) (*TokenDetails, error) {
 }
 
 //CreateAuth creates a valid token in cached db
-func CreateAuth(id uint, token *TokenDetails) error {
-	at := time.Unix(token.AExp, 0)
+func CreateAuth(db *database.DataBase, id uint, token *TokenDetails) error {
 	rt := time.Unix(token.RExp, 0)
-	err := rdb.Set(ctx, token.AUuid, strconv.Itoa(int(id)), at.Sub(time.Now())).Err()
+	at := time.Unix(token.AExp, 0)
+
+	err := db.Rdb.Set(db.Ctx, token.AUuid, strconv.Itoa(int(id)), at.Sub(time.Now())).Err()
 	if err != nil {
-		err = fmt.Errorf("error with creating the cached memory for access token")
 		return err
 	}
 
-	err = rdb.Set(ctx, token.RUuid, strconv.Itoa(int(id)), rt.Sub(time.Now())).Err()
-
+	err = db.Rdb.Set(db.Ctx, token.RUuid, strconv.Itoa(int(id)), rt.Sub(time.Now())).Err()
 	if err != nil {
-		err = fmt.Errorf("error with creatig the cached memory for refresh token")
 		return err
 	}
 
@@ -185,8 +108,7 @@ func ExtractToken(r *http.Request) string {
 
 // VerifyToken verifies if token is exist or not
 func VerifyToken(r *http.Request) (*jwt.Token, error) {
-	// tokenString := ExtractToken(r)
-	tokenString := r.Header.Get("Authorization")
+	tokenString := ExtractToken(r)
 	token, err := jwt.Parse(tokenString, func (token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -202,7 +124,7 @@ func VerifyToken(r *http.Request) (*jwt.Token, error) {
 	return token, nil
 }
 
-// TokenValid ...
+// TokenValid validity of token
 func TokenValid(r *http.Request) (error) {
 	token, err := VerifyToken(r)
 	if err != nil {
@@ -230,7 +152,7 @@ func ExtractTokenData(r *http.Request) (*AccessToken, error) {
 		return nil, fmt.Errorf("no claims")
 	}
 
-	userID, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["user_id"]), 10, 0)
+	userID, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["id"]), 10, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -247,8 +169,8 @@ func ExtractTokenData(r *http.Request) (*AccessToken, error) {
 }
 
 // CheckAuth ...
-func CheckAuth(authD *AccessToken) (int, error) {
-	userID, err := rdb.Get(ctx, authD.AUuid).Result()
+func CheckAuth(db *database.DataBase, authD *AccessToken) (int, error) {
+	userID, err := db.Rdb.Get(db.Ctx, authD.AUuid).Result()
 	if err != nil {
 		return -1, nil
 	}
@@ -257,31 +179,16 @@ func CheckAuth(authD *AccessToken) (int, error) {
 	return int(userIDint), nil
 }
 
+
 // DeleteAuth ...
-func DeleteAuth(uuid string) (int64, error) {
-	deleted, err := rdb.Del(ctx, uuid).Result()
+func DeleteAuth(db *database.DataBase, uuid string) (int64, error) {
+	deleted, err := db.Rdb.Del(db.Ctx, uuid).Result()
 	if err != nil {
 		return -1, err
 	}
 	return deleted, nil
 }
 
-// Logout ...
-func Logout(w http.ResponseWriter, r *http.Request) {
-	au, err := ExtractTokenData(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	delID, err := DeleteAuth(au.AUuid)
-
-	if err != nil && delID != 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Successfully logged out\n"))
-}
 
 // Refresh ... 
 func Refresh(w http.ResponseWriter, r *http.Request) {
@@ -291,10 +198,12 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
 	}
 
 	if err = json.Unmarshal(bodyBytes, &tokens); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
 	}
 
 	refreshToken := tokens["refresh_token"]
@@ -304,11 +213,12 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 		   return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(os.Getenv("REFRESH_SECRET")), nil
+		return []byte("should change"), nil
 	     })
 	
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
@@ -323,7 +233,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusExpectationFailed)
 		}
 
-		if deleted, ok := DeleteAuth(refreshUUID); deleted != 0 && ok != nil {
+		if deleted, err := DeleteAuth(refreshUUID); deleted != 0 && err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 

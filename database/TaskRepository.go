@@ -8,38 +8,36 @@ import (
 	"gorm.io/gorm"
 )
 
-// TaskRep ...
-type TaskRep struct {
+// TaskRepository ...
+type TaskRepository struct {
 	db *DataBase
 }
 
-// NewTaskRep creates an instance of TaskRep
-func newTaskRep(db *DataBase) *TaskRep {
-	return &TaskRep{db: db}
+// NewTaskRepository creates an instance of TaskRepository
+func NewTaskRepository(db *DataBase) *TaskRepository {
+	return &TaskRepository{db: db}
 }
 // Create the task
-func (tr *TaskRep) Create(t *models.Task) (*models.Task, error) {
+func (tr *TaskRepository) Create(t *models.Task) (error) {
 	currentDB := tr.db.Pdb
 
 	if err := t.Validate(); err != nil {
-		return nil, err
+		return err
 	}
 
-	tr.db.Lock()
 	currentDB.Create(t)
-	tr.db.Unlock()
-	return t, nil
+	return nil
 }
 
 // Read retrieves all tasks related to t
-func (tr *TaskRep) Read(t *models.Task) ([]*models.Task, error) {
+func (tr *TaskRepository) Read(t *models.Task) ([]*models.Task, error) {
 	currentDB := tr.db.Pdb
 	tasks := make([]*models.Task, 0)
 	var result *gorm.DB
 	if (t == nil) {
 		result = currentDB.Table("tasks").Select("*").Find(&tasks)
 	} else {
-		result = currentDB.Model(&models.Task{}).Where("user_refer = ?", t.UserRefer).Find(&tasks)
+		result = currentDB.Model(&models.Task{}).Where("user_id = ?", t.UserID).Find(&tasks)
 	}
 	if result.Error != nil {
 		return nil, result.Error
@@ -48,54 +46,58 @@ func (tr *TaskRep) Read(t *models.Task) ([]*models.Task, error) {
 }
 
 // Delete the task
-func (tr *TaskRep) Delete(t *models.Task) error {
+func (tr *TaskRepository) Delete(t *models.Task) error {
 	currentDB := tr.db.Pdb
 
-	tr.db.Lock()
-	currentDB.Where("id = ?", t.ID).Delete(&models.Task{})
-	tr.db.Unlock()
+	result := currentDB.Where("id = ?", t.ID).Delete(&models.Task{})
+	if result.Error != nil {
+		return result.Error
+	}
 
 	return nil
 }
 
 // Update updates the info about user
-func (tr *TaskRep) Update(t *models.Task) (*models.Task, error) {
+func (tr *TaskRepository) Update(t *models.Task) (*models.Task, error) {
 	currentDB := tr.db.Pdb
 
 	var oldObj = new(models.Task)
 
-	result := currentDB.Table("tasks").Where("id = ?", t.ID).First(&models.Task{})
+	result := currentDB.Table("tasks").Where("id = ?", t.ID).First(&oldObj)
 
 	
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
-	var updateMap, oldMap map[string]interface{}
+	updateMap:= make(map[string][]byte)
+	oldMap:= make(map[string][]byte)
+	newMap:= make(map[string][]byte)
+
 	oldBytes, err := json.Marshal(oldObj)
 	_ = json.Unmarshal(oldBytes, &oldMap)
 	newBytes, err := json.Marshal(t)
 	_ = json.Unmarshal(newBytes, &updateMap)
+	fmt.Println(updateMap, oldMap)
 
 	for key, value := range updateMap {
-		if value.(string) != "" {
-			fmt.Println("Here")
-			oldMap[key] = updateMap[key]
+		
+		if len(value) > 0 {
+			newMap[key] = updateMap[key]
+		} else {
+			newMap[key] = oldMap[key]
 		}
 	}
 
-	newBytes, err = json.Marshal(oldMap)
+	newBytes, err = json.Marshal(newMap)
 	_ = json.Unmarshal(newBytes, &oldObj)
-	fmt.Println(t, string(newBytes))
 	if err := t.Validate(); err != nil {
 		return nil, err
 	}
-	tr.db.Lock()
 	if err = tr.db.Pdb.Model(&models.Task{}).Where("id = ?", t.ID).Save(&oldObj).Error;
 	err != nil {
 		return nil, err
 	}
-	tr.db.Unlock()
 	
-	return t, nil
+	return oldObj, nil
 }

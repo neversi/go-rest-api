@@ -8,32 +8,34 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/misc"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/service"
 )
 
-// import "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
-
-// TaskReq handles the request of the user
-type TaskReq struct {
-	api *APIServer
+// TaskController handles the request of the user
+type TaskController struct {
+	taskService service.ITaskService
 }
 
-// NewTaskReq creates TaskReq
-func NewTaskReq(api *APIServer) *TaskReq {
-	return &TaskReq{
-		api: api,
+// NewTaskController creates TaskController
+func NewTaskController(db *database.DataBase) *TaskController {
+	return &TaskController{
+		taskService: &service.TaskService{
+			TaskRepository: database.NewTaskRepository(db),
+		},
 	}
 }
 
-// TaskCreate creates the task and imports it in DB
-func (tr *TaskReq) TaskCreate(w http.ResponseWriter, r *http.Request) {
-	// var tasks []*models.Task
-	var task *models.Task
+// Create handles the request and creates
+func (tr *TaskController) Create(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
+	task := new(models.Task)
 
 	err = json.Unmarshal(bodyBytes, &task)
 	if err != nil {
@@ -41,18 +43,21 @@ func (tr *TaskReq) TaskCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// for _, task := range tasks {
-		task, err = tr.api.db.Task().Create(task)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	// }
-	w.WriteHeader(http.StatusOK)
+	if err = task.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err = tr.taskService.Create(task); err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	misc.JSONWrite(w, misc.WriteResponse(false, "Success"), http.StatusCreated)
 }
 
-// TaskRead retrieves certain datas from DB
-func (tr *TaskReq) TaskRead(w http.ResponseWriter, r *http.Request) {
+// Read retrieves certain datas from DB
+func (tr *TaskController) Read(w http.ResponseWriter, r *http.Request) {
 	var tasks []*models.Task
 	var err error
 	vars := mux.Vars(r)
@@ -63,11 +68,11 @@ func (tr *TaskReq) TaskRead(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
-		task := &models.Task{UserRefer: uint(userID)}
-		tasks, err = tr.api.db.Task().Read(task)
+		task := &models.Task{UserID: uint(userID)}
+		err = tr.taskService.Read(task)
 		
 	} else {
-		tasks, err = tr.api.db.Task().Read(nil)
+		err = tr.taskService.Read(nil)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -79,8 +84,8 @@ func (tr *TaskReq) TaskRead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TaskDelete deletes task from DB
-func (tr *TaskReq) TaskDelete(w http.ResponseWriter, r *http.Request) {
+// Delete deletes task from DB
+func (tr *TaskController) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var err error
 	taskIDs, ok := vars["task_id"]
@@ -91,7 +96,7 @@ func (tr *TaskReq) TaskDelete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		task := &models.Task{ID: uint(taskID)}
-		err = tr.api.db.Task().Delete(task)
+		err = tr.taskService.Delete(task)
 	}
 	// title implement!
 	if err != nil { 
@@ -100,8 +105,8 @@ func (tr *TaskReq) TaskDelete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TaskUpdate updates the tasks parameters in DB
-func (tr *TaskReq) TaskUpdate(w http.ResponseWriter, r *http.Request) {
+// Update updates the tasks parameters in DB
+func (tr *TaskController) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var err error
 	var task *models.Task
@@ -114,7 +119,7 @@ func (tr *TaskReq) TaskUpdate(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
-		task = &models.Task{ID: uint(taskID), UserRefer: uint(userID)}
+		task = &models.Task{ID: uint(taskID), UserID: uint(userID)}
 	}
 	
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -130,7 +135,7 @@ func (tr *TaskReq) TaskUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(task)
-	task, err = tr.api.db.Task().Update(task)
+	err = tr.taskService.Update(task)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

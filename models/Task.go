@@ -7,9 +7,9 @@ import (
 
 // Task of the author (zadacha)
 type Task struct {
-	ID 		uint   "json:\"id\" gorm:\"primaryKey\""
-	UserRefer	uint   "json:\"user_id\""
-	User		User	"gorm:\"foreignKey:UserRefer\""
+	ID 		uint   "json:\"id\""
+	UserID		uint   "json:\"user_id\""
+	User		User	
 	Title    	string "json:\"title\" gorm:\"not null\""
 	Text     	string "json:\"text\" gorm:\"not null\""
 	Category 	string "json:\"category\" gorm:\"not null\""

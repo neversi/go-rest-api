@@ -27,18 +27,4 @@ func main() {
 
 	api.Start()
 
-	// db := database.New()
-	// db.OpenDataBase()
-
-	// user := &models.User{
-	// 	Login: "abadr",
-	// 	Password: "ABDRABDR",
-	// 	FirstName: "Abdarrakhman",
-	// 	SurName: "Akhmetgali",
-	// 	Email: "Abdarrakhman@gmail.com",
-	// }
-	// _ = user
-
-	// users, _ := db.User().Read(nil)
-	// _ = users
 }
