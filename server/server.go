@@ -17,10 +17,11 @@ type APIServer struct {
 }
 
 // New initialize the server
-func New()(*APIServer, error) {
-	var configs *configs.Server
+func New(conf *configs.Server) (*APIServer, error) {
+	configs := conf
+
 	db := database.New()
-	db.OpenDataBase()
+	db.OpenDataBase(&configs.DB)
 
 	return &APIServer{
 		taskController: NewTaskController(db),
@@ -40,9 +41,10 @@ func (api *APIServer) Start() error {
 	})
 	userRouter := router.PathPrefix("/users").Subrouter()
 	taskRouter := router.PathPrefix("/tasks").Subrouter()
-	userRouter.HandleFunc("/", api.userController.Read).Methods("GET")
 	router.HandleFunc("/login", api.userController.Login).Methods("POST")
-	// router.HandleFunc("/register", api.userController.Register).Methods("POST")
+	router.HandleFunc("/register", api.userController.Register).Methods("POST")
+
+	userRouter.HandleFunc("/", api.userController.Read).Methods("GET")
 	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
 	userRouter.HandleFunc("/", api.userController.Create).Methods("POST")
 	userRouter.HandleFunc("/{id}", api.userController.Delete).Methods("DELETE")
@@ -63,7 +65,4 @@ func (api *APIServer) Start() error {
 	return http.ListenAndServe(api.config.Port, router)
 }
 
-// Greeting function
-func Greeting(w http.ResponseWriter, r *http.Request) {
-}
 
