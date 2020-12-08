@@ -27,16 +27,15 @@ type DataBase struct {
 // New creates a new database
 func New() *DataBase {
 	newDB := DataBase{}
-	if err := newDB.OpenDataBase(); err != nil {
-		return nil;
-	}
 	return &newDB
 }
 // OpenDataBase ... (do not forget logger + )
-func (DB *DataBase) OpenDataBase() error {
+func (DB *DataBase) OpenDataBase(conf *configs.Database) error {
 	var err error
-	
+
+	DB.config = conf
 	DB.Ctx = context.Background()
+	
 	dsn := fmt.Sprintf("%s %s", DB.config.Port, DB.config.DBURL)
 	newLogger := logger.New(
 		log.New(os.Stdout, "\n", log.LstdFlags),logger.Config{
