@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/auth"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
@@ -25,7 +26,7 @@ type UserController struct {
 func NewUserController(db *database.DataBase) *UserController {
 	return &UserController{
 		userService: &service.UserService{
-			database.NewUserRepository(db),
+			UserRepository: database.NewUserRepository(db),
 		},
 	}
 }
@@ -35,7 +36,8 @@ func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 	if r.Header.Get("Content-Type") != "application/json" {
 		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
 		return
-	}
+	} // Middleware
+
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
@@ -48,7 +50,7 @@ func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 
 	err = ur.userService.Create(newUser)
 	if err != nil {
-		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 		return
 	}
 	misc.JSONWrite(w, misc.WriteResponse(false, "User created"), http.StatusCreated)
@@ -77,9 +79,10 @@ func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		}
-		users, err := ur.userService.FindByID()
+		user, err = ur.userService.FindByID(user.ID);
+		users = append(users, user);
 	} else {
-		users, err := ur.userService.Read(nil)
+		users, err = ur.userService.Read(nil)
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusUnsupportedMediaType)
@@ -89,7 +92,7 @@ func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// UserUpdate updates the info about user
+// Update updates the info about user
 func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
@@ -108,10 +111,6 @@ func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	
 	err = json.Unmarshal(bodyBytes, &userDTO)
 	
-	
-	// var user *models.User
-	// err = json.Unmarshal(bodyBytes, &user)
-	// users := v.([]*models.User)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -120,15 +119,13 @@ func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	
 	userIDi, err := strconv.ParseInt(vars["id"], 10, 0)
 	userDTO.ID = uint(userIDi)
-	// for _, user := range users {
-		err = ur.userService.Update(userDTO)
-		if err != nil {	
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-	// }
+	err = ur.userService.Update(userDTO)
+	if err != nil {	
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		return
+	}
 	
-	w.WriteHeader(http.StatusOK)
+	misc.JSONWrite(w, misc.WriteResponse(false, "Successfully updated"), http.StatusOK)
 }
 
 // Delete deletes the user account
@@ -138,8 +135,13 @@ func (ur *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-
 	userDTO := new(database.UserDTO)
+	bodyBytes, err := ioutil.ReadAll(r.Body);
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
+		return
+	}
+	err = json.Unmarshal(bodyBytes, &userDTO)
 	userID, _ := strconv.ParseInt(vars["id"], 10, 0)
 	userDTO.ID = uint(userID)
 	if err := ur.userService.Delete(userDTO); err != nil {
@@ -156,7 +158,7 @@ func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := new(models.User)
-	// contentType := r.Header.Get("Content-Type")
+
 	bodyBytes, err := ioutil.ReadAll(r.Body);
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
@@ -169,40 +171,25 @@ func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := ur.userService.FindByLogin(u.Login)
+	err = ur.userService.CheckUser(u.Login, u.Password)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusNotFound)
 		return
 	}
 
-	if users == nil {
-		misc.JSONWrite(w, "There is no such user", http.StatusNotFound)
-		return
-	}
+	user, err := ur.userService.FindByLogin(u.Login);
 
-	checkUser := users[0]
-	if valid, _ := misc.CompareHash(checkUser.Password, u.Password); valid !=  true  {
-		misc.JSONWrite(w, "Wrong password", http.StatusUnauthorized)
-		return
-	}
-	token, err := auth.CreateToken(u.ID)
+	token, err := auth.CreateToken(user.ID)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
-		return
-	}
-	if err = auth.CreateAuth(checkUser.ID, token); err != nil {
-		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
-		return
+			http.Error(w, "Not Authorized", http.StatusUnauthorized)
+			return
 	}
 
 	signedTokens := map[string]string{"accessToken":token.AToken, "refreshToken":token.RToken}
-	jsonBytes, err := json.Marshal(signedTokens)
-	if err != nil {
-		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
-		return		
-	}
-	w.Write(jsonBytes)
-	w.WriteHeader(http.StatusCreated)
+
+	misc.JSONWrite(w, misc.WriteResponse(false, signedTokens), http.StatusCreated)
+
 }
 
 // Register registers the node
@@ -215,19 +202,12 @@ func (ur *UserController) Register(w http.ResponseWriter, r *http.Request) {
 
 // Logout ...
 func (ur *UserController) Logout(w http.ResponseWriter, r *http.Request) {
-	au, err := auth.ExtractTokenData(r)
+	_, err := auth.ExtractTokenData(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-
-	delID, err := auth.DeleteAuth(ur.userRepository.DB, au.AUuid)
-
-	if err != nil && delID != 0 {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte("Successfully logged out\n"))
+	misc.JSONWrite(w, misc.WriteResponse(false, "Successfully logged out"), http.StatusAccepted)
 }
 
 
@@ -244,7 +224,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = json.Unmarshal(bodyBytes, &tokens); err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -259,25 +239,21 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	     })
 	
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnauthorized)
 		return
 	}
 
 	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		return
 	}
 
 	mapClaims, ok := token.Claims.(jwt.MapClaims); 
 	if ok && token.Valid {
-		refreshUUID, ok := mapClaims["r_id"].(string)
-		if !ok {
-			w.WriteHeader(http.StatusExpectationFailed)
-		}
-
-		if deleted, err := auth.DeleteAuth(refreshUUID); deleted != 0 && err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		// refreshUUID, ok := mapClaims["r_id"].(string)
+		// if !ok {
+		// 	w.WriteHeader(http.StatusExpectationFailed)
+		// }
 
 		userID := mapClaims["id"].(string)
 		userIDInt, _ := strconv.Atoi(userID)
@@ -286,20 +262,11 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusExpectationFailed)
 		}
 
-		err = auth.CreateAuth(uint(userIDInt), refreshedTokens)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Cannot authorize token")
-			return
-		}
-
 		tokens := map[string]string{
 			"access_token": refreshedTokens.AUuid,
 			"refresh_token": refreshedTokens.RUuid,
 		}
-		bodyBytes, err = json.Marshal(tokens)
-		w.Write(bodyBytes)
-		w.WriteHeader(http.StatusCreated)
+		misc.JSONWrite(w, misc.WriteResponse(false, tokens), http.StatusCreated)
 		return
 	}
 	

@@ -20,12 +20,7 @@ func NewTaskRepository(db *DataBase) *TaskRepository {
 // Create the task
 func (tr *TaskRepository) Create(t *models.Task) (error) {
 	currentDB := tr.db.Pdb
-
-	if err := t.Validate(); err != nil {
-		return err
-	}
-
-	currentDB.Create(t)
+	currentDB.Model(&models.Task{}).Create(t)
 	return nil
 }
 
@@ -39,9 +34,14 @@ func (tr *TaskRepository) Read(t *models.Task) ([]*models.Task, error) {
 	} else {
 		result = currentDB.Model(&models.Task{}).Where("user_id = ?", t.UserID).Find(&tasks)
 	}
-	if result.Error != nil {
+	if result.Error != nil && len(tasks) != 0 {
 		return nil, result.Error
 	}
+
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+	
 	return tasks, nil
 }
 
@@ -58,7 +58,7 @@ func (tr *TaskRepository) Delete(t *models.Task) error {
 }
 
 // Update updates the info about user
-func (tr *TaskRepository) Update(t *models.Task) (*models.Task, error) {
+func (tr *TaskRepository) Update(t *models.Task) error {
 	currentDB := tr.db.Pdb
 
 	var oldObj = new(models.Task)
@@ -67,7 +67,7 @@ func (tr *TaskRepository) Update(t *models.Task) (*models.Task, error) {
 
 	
 	if result.Error != nil {
-		return nil, result.Error
+		return result.Error
 	}
 
 	updateMap:= make(map[string][]byte)
@@ -92,12 +92,12 @@ func (tr *TaskRepository) Update(t *models.Task) (*models.Task, error) {
 	newBytes, err = json.Marshal(newMap)
 	_ = json.Unmarshal(newBytes, &oldObj)
 	if err := t.Validate(); err != nil {
-		return nil, err
+		return err
 	}
 	if err = tr.db.Pdb.Model(&models.Task{}).Where("id = ?", t.ID).Save(&oldObj).Error;
 	err != nil {
-		return nil, err
+		return err
 	}
 	
-	return oldObj, nil
+	return nil
 }

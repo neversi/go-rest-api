@@ -1,9 +1,7 @@
 package auth
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -187,79 +185,4 @@ func DeleteAuth(db *database.DataBase, uuid string) (int64, error) {
 		return -1, err
 	}
 	return deleted, nil
-}
-
-
-// Refresh ... 
-func Refresh(w http.ResponseWriter, r *http.Request) {
-	tokens := map[string]string{}
-
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-
-	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		return
-	}
-
-	if err = json.Unmarshal(bodyBytes, &tokens); err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		return
-	}
-
-	refreshToken := tokens["refresh_token"]
-
-	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
-		//Make sure that the token method conform to "SigningMethodHMAC"
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-		   return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte("should change"), nil
-	     })
-	
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		return
-	}
-
-	mapClaims, ok := token.Claims.(jwt.MapClaims); 
-	if ok && token.Valid {
-		refreshUUID, ok := mapClaims["r_id"].(string)
-		if !ok {
-			w.WriteHeader(http.StatusExpectationFailed)
-		}
-
-		if deleted, err := DeleteAuth(refreshUUID); deleted != 0 && err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		userID := mapClaims["id"].(string)
-		userIDInt, _ := strconv.Atoi(userID)
-		refreshedTokens, err := CreateToken(uint(userIDInt))
-		if err != nil {
-			w.WriteHeader(http.StatusExpectationFailed)
-		}
-
-		err = CreateAuth(uint(userIDInt), refreshedTokens)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Cannot authorize token")
-			return
-		}
-
-		tokens := map[string]string{
-			"access_token": refreshedTokens.AUuid,
-			"refresh_token": refreshedTokens.RUuid,
-		}
-		bodyBytes, err = json.Marshal(tokens)
-		w.Write(bodyBytes)
-		w.WriteHeader(http.StatusCreated)
-		return
-	}
-	
-	w.WriteHeader(http.StatusUnauthorized)	
 }

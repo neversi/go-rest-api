@@ -44,17 +44,17 @@ func NewUserRepository(db *DataBase) *UserRepository {
 }
 
 // Create ...
-func (ur *UserRepository) Create(u *models.User) (*models.User, error) {
+func (ur *UserRepository) Create(u *models.User) error {
 
 	currentDB := ur.db.Pdb
 	encrypted, err := misc.EncryptString(u.Password)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	u.Password = encrypted
 	currentDB.Create(u)
-	return u, nil
+	return nil
 }
 
 // Read retrieves the user(s) from table users
@@ -84,17 +84,17 @@ func (ur *UserRepository) Read(u *models.User) ([]*models.User, error) {
 }
 
 // Update updates the info about user
-func (ur *UserRepository) Update(u *models.User) (*models.User, error) {
+func (ur *UserRepository) Update(u *models.User) error {
 	currentDB := ur.db.Pdb
 
 	var user = new(models.User)
 	var result *gorm.DB
 	if result = currentDB.Table("users").Select("*").Where("id = ?", u.ID).First(&user); result.Error != nil {
-		return nil, result.Error
+		return result.Error
 	}
 
 	if err := u.Validate(); err != nil {
-		return nil, err
+		return err
 	}
 
 	oldMap := make(map[string][]byte)
@@ -120,17 +120,20 @@ func (ur *UserRepository) Update(u *models.User) (*models.User, error) {
 	
 	err := ur.db.Pdb.Model(&models.User{}).Where("login = ? ", u.Login).Save(&user).Error
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return u, nil
+	return nil
 }
 
 // Delete user by the login parameter
 func (ur *UserRepository) Delete(u *models.User) error {
 	currentDB := ur.db.Pdb
-
-	currentDB.Where("login = ?", u.Login).Delete(&models.User{})
+	if (len(u.Login) != 0) {
+		currentDB.Model(&models.User{}).Where("login = ?", u.Login).Delete(&models.User{})
+	} else {
+		currentDB.Model(&models.User{}).Where("id = ?", u.ID).Delete(&models.User{});
+	}
 
 	return nil
 }
