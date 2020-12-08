@@ -64,6 +64,7 @@ func (ur *UserRepository) Read(u *models.User) ([]*models.User, error) {
 	var result *gorm.DB
 	if u == nil {
 		result = currentDB.Model(&models.User{}).Select("*").Find(&users)
+		print("HERE")
 	} else {
 		if len(u.Login) == 0 {
 			result = currentDB.Model(&models.User{}).Where("id = ?", u.ID).First(&users)

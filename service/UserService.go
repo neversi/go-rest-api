@@ -28,6 +28,7 @@ type UserService struct {
 func (service *UserService) Create(usr *models.User) error {
 	
 	user, err := service.FindByLogin(usr.Login);
+
 	if err != nil {
 		return err
 	}
@@ -77,12 +78,18 @@ func (service *UserService) Update(t *database.UserDTO) error {
 
 // Read ...
 func (service *UserService) Read(t *database.UserDTO) ([]*database.UserDTO, error) {
-
+	var err error
 	user := new(models.User)
-	user.Login = t.Login;
-	user.ID = t.ID;
+	if t == nil {
+		user = nil
+	} else {
+		user.Login = t.Login;
+		user.ID = t.ID;
+	}
 
-	users, err := service.UserRepository.Read(user);
+	users := make([]*models.User, 0)
+	
+	users, err = service.UserRepository.Read(user);
 
 	if err != nil {
 		return nil, err

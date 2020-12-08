@@ -35,8 +35,7 @@ func (DB *DataBase) OpenDataBase(conf *configs.Database) error {
 
 	DB.config = conf
 	DB.Ctx = context.Background()
-	
-	dsn := fmt.Sprintf("%s %s", DB.config.Port, DB.config.DBURL)
+	dsn := fmt.Sprintf("port=%s %s", DB.config.Port, DB.config.DBURL)
 	newLogger := logger.New(
 		log.New(os.Stdout, "\n", log.LstdFlags),logger.Config{
 			SlowThreshold: time.Second,

@@ -19,12 +19,11 @@ type APIServer struct {
 
 // New initialize the server
 func New(conf *configs.Server) (*APIServer, error) {
-	configs := conf
-
 	db := database.New()
-	db.OpenDataBase(&configs.DB)
+	db.OpenDataBase(conf.DB)
 
 	return &APIServer{
+		config: conf,
 		taskController: NewTaskController(db),
 		userController: NewUserController(db),
 	}, nil
@@ -33,9 +32,6 @@ func New(conf *configs.Server) (*APIServer, error) {
 // Start starts the server
 func (api *APIServer) Start() error {
 	router := mux.NewRouter()
-	// subRoutes
-	// simpler as you can
-	// Redis - catalog
 	router.HandleFunc("/", func (w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello World!"))
 		w.WriteHeader(http.StatusOK)
@@ -45,9 +41,9 @@ func (api *APIServer) Start() error {
 	router.HandleFunc("/login", api.userController.Login).Methods("POST")
 	router.HandleFunc("/register", api.userController.Register).Methods("POST")
 
-	userRouter.HandleFunc("/", api.userController.Read).Methods("GET")
+	router.HandleFunc("/users", api.userController.Read).Methods("GET")
 	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
-	userRouter.HandleFunc("/", api.userController.Create).Methods("POST")
+	router.HandleFunc("/users", api.userController.Create).Methods("POST")
 	userRouter.HandleFunc("/{id}", api.userController.Delete).Methods("DELETE")
 	userRouter.HandleFunc("/{id}", api.userController.Update).Methods("PUT")
 	
@@ -59,9 +55,12 @@ func (api *APIServer) Start() error {
 	userRouter.HandleFunc("/{id}/tasks/{task_id}", api.taskController.Update).Methods("PUT")
 	router.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
 
+	router.Use(middleware.LoggerHandler)
 	router.Use(middleware.JSONDataCheck)
-	userRouter.Use(middleware.IsAuthorized)
+
+	userRouter.Use(middleware.IsAuthenticated)
 	userRouter.Use(middleware.AuthorizationUser)
+
 	return http.ListenAndServe(fmt.Sprintf(":%s", api.config.Port), router)
 }
 

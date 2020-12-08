@@ -11,8 +11,8 @@ import (
 // String ...
 type String string;
 
-// IsAuthorized ...
-func IsAuthorized(next http.Handler) http.Handler {
+// IsAuthenticated ...
+func IsAuthenticated(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		
 		if r.Header["Authorization"] != nil {

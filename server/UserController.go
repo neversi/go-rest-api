@@ -33,11 +33,7 @@ func NewUserController(db *database.DataBase) *UserController {
 
 // Create creates the user in the database
 func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
-	if r.Header.Get("Content-Type") != "application/json" {
-		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
-		return
-	} // Middleware
-
+	
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
@@ -69,8 +65,8 @@ func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		return
 	}
-	if (len(bodyBytes) != 0) {
-		isEmpty = !isEmpty
+	if (string(bodyBytes) != "{}") {
+		isEmpty = false
 	}
 	users := make([]*database.UserDTO, 0)
 	if isEmpty == false {
