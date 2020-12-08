@@ -4,15 +4,17 @@ import (
 	"flag"
 	"fmt"
 
-	// "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
-	// "gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/server"
 )
 
-var configPath string
+var (
+	serverConfigPath string
+	dbConfigPath 	 string	
+)
 
 func init() { 
-	flag.StringVar(&configPath, "configPath", "config.json", "configure file which contains certain details")
+	flag.StringVar(&serverConfigPath, "serverConfig", "configs/Server.toml", "configure server with the options in the passed file")
+	flag.StringVar(&dbConfigPath, "dbConfig", "configs/DataBase.toml", "configure data base with the options in the passed file")
 }
 
 func main() {
