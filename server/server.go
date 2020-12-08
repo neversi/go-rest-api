@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -61,8 +62,7 @@ func (api *APIServer) Start() error {
 	router.Use(middleware.JSONDataCheck)
 	userRouter.Use(middleware.IsAuthorized)
 	userRouter.Use(middleware.AuthorizationUser)
-	
-	return http.ListenAndServe(api.config.Port, router)
+	return http.ListenAndServe(fmt.Sprintf(":%s", api.config.Port), router)
 }
 
 
