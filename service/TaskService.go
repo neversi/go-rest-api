@@ -24,12 +24,12 @@ type TaskService struct {
 }
 
 // Create creates the function
-func (ts *TaskService) Create(t *models.Task) error {
+func (service *TaskService) Create(t *models.Task) error {
 	if err := t.Validate(); err != nil {
 		return err
 	}
 
-	err := ts.TaskRepository.Create(t)
+	err := service.TaskRepository.Create(t)
 	if err != nil {
 		return err
 	}
@@ -37,9 +37,9 @@ func (ts *TaskService) Create(t *models.Task) error {
 }
 
 // Read ...
-func (ts *TaskService) Read(t *models.Task) ([]*models.Task, error) {
+func (service *TaskService) Read(t *models.Task) ([]*models.Task, error) {
 	tasks := make([]*models.Task, 0)
-	tasks, err := ts.TaskRepository.Read(t)
+	tasks, err := service.TaskRepository.Read(t)
 	if err != nil {
 		return nil, err
 	}
@@ -47,8 +47,8 @@ func (ts *TaskService) Read(t *models.Task) ([]*models.Task, error) {
 }
 
 // Update ...
-func (ts *TaskService) Update(t *models.Task) error {
-	task, err := ts.FindByID(t.ID);
+func (service *TaskService) Update(t *models.Task) error {
+	task, err := service.FindByID(t.ID);
 
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func (ts *TaskService) Update(t *models.Task) error {
 		return fmt.Errorf("There is no such task");
 	}
 	
-	err = ts.TaskRepository.Update(t)
+	err = service.TaskRepository.Update(t)
 	if err != nil {
 		return err
 	}
@@ -66,8 +66,8 @@ func (ts *TaskService) Update(t *models.Task) error {
 }
 
 // Delete ...
-func (ts *TaskService) Delete(t *models.Task) error {
-	task, err := ts.FindByID(t.ID);
+func (service *TaskService) Delete(t *models.Task) error {
+	task, err := service.FindByID(t.ID);
 
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (ts *TaskService) Delete(t *models.Task) error {
 		return fmt.Errorf("There is no such task");
 	}
 	
-	err = ts.TaskRepository.Delete(t)
+	err = service.TaskRepository.Delete(t)
 
 	if err != nil { 
 		return err
@@ -89,10 +89,10 @@ func (ts *TaskService) Delete(t *models.Task) error {
 
 
 // FindByID ...
-func (ts *TaskService) FindByID(id uint) (*models.Task, error) {
+func (service *TaskService) FindByID(id uint) (*models.Task, error) {
 	task := new(models.Task)
 	task.ID = id
-	tasks, err := ts.TaskRepository.Read(task)
+	tasks, err := service.TaskRepository.Read(task)
 
 	if err != nil {
 		return nil, err
@@ -100,6 +100,8 @@ func (ts *TaskService) FindByID(id uint) (*models.Task, error) {
 	
 	return tasks[0], nil
 }
+
+
 
 
 

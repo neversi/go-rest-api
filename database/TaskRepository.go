@@ -20,7 +20,10 @@ func NewTaskRepository(db *DataBase) *TaskRepository {
 // Create the task
 func (tr *TaskRepository) Create(t *models.Task) (error) {
 	currentDB := tr.db.Pdb
-	currentDB.Model(&models.Task{}).Create(t)
+	err := currentDB.Model(&models.Task{}).Create(t).Error
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -94,7 +97,7 @@ func (tr *TaskRepository) Update(t *models.Task) error {
 	if err := t.Validate(); err != nil {
 		return err
 	}
-	if err = tr.db.Pdb.Model(&models.Task{}).Where("id = ?", t.ID).Save(&oldObj).Error;
+	if err = tr.db.Pdb.Model(&models.Task{}).Where("id = ?", t.ID).Save(&oldObj).Error
 	err != nil {
 		return err
 	}

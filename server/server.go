@@ -53,11 +53,12 @@ func (api *APIServer) Start() error {
 	
 	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
 	
-	// router.HandleFunc("/refresh", api.userController.Refresh).Methods("GET")
+	router.HandleFunc("/refresh", Refresh).Methods("GET")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Create).Methods("POST")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Read).Methods("GET")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Delete).Methods("DELETE")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Update).Methods("PUT")
+	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.GetByID).Methods("GET")
 	router.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
 
 	userRouter.Use(middleware.IsAuthenticated)

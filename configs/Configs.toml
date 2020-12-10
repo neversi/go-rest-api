@@ -4,3 +4,9 @@ port = "8080"
 [database]
 port = "5432"
 database_url = "host=localhost user=abdr password=qwerty123 dbname=abdr sslmode=disable"
+
+[cache]
+host    = "localhost"
+port    = "5431"
+db      = 1
+exp     = 1200

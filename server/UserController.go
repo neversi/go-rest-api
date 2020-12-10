@@ -36,7 +36,7 @@ func NewUserController(db *database.DataBase) *UserController {
 }
 
 // Create creates the user in the database
-func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
+func (controller *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 	
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -58,25 +58,25 @@ func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 	if newRole.Role == "" {
 		newRole.Role = "user"
 	}
-	
+
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		return
 	}
 	
-	err = ur.userService.Create(newUser)
+	err = controller.userService.Create(newUser)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	newUser, err = ur.userService.FindByLogin(newUser.Login)
+	newUser, err = controller.userService.FindByLogin(newUser.Login)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	err = ur.roleService.SetUserRole(newUser.ID, newRole.Role)
+	err = controller.roleService.SetUserRole(newUser.ID, newRole.Role)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
@@ -86,7 +86,7 @@ func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 }
 
 // UserRead responds with json format file where all users are written
-func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
+func (controller *UserController) Read(w http.ResponseWriter, r *http.Request) {
 	isEmpty := true
 	
 	bodyBytes, err := json.Marshal(r.Body)
@@ -104,10 +104,10 @@ func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		}
-		user, err = ur.userService.FindByID(user.ID);
+		user, err = controller.userService.FindByID(user.ID);
 		users = append(users, user);
 	} else {
-		users, err = ur.userService.Read(nil)
+		users, err = controller.userService.Read(nil)
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusUnsupportedMediaType)
@@ -118,7 +118,7 @@ func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update updates the info about user
-func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
+func (controller *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 
@@ -148,19 +148,19 @@ func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	
 	userIDi, err := strconv.ParseInt(vars["id"], 10, 0)
 	userDTO.ID = uint(userIDi)
-	err = ur.userService.Update(userDTO)
+	err = controller.userService.Update(userDTO)
 	if err != nil {	
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	usr, err := ur.userService.FindByLogin(userDTO.Login)
+	usr, err := controller.userService.FindByLogin(userDTO.Login)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	err = ur.roleService.SetUserRole(usr.ID, newRole.Role)
+	err = controller.roleService.SetUserRole(usr.ID, newRole.Role)
 	
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
@@ -170,7 +170,7 @@ func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete deletes the user account
-func (ur *UserController) Delete(w http.ResponseWriter, r *http.Request) {
+func (controller *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userDTO := new(database.UserDTO)
 	bodyBytes, err := ioutil.ReadAll(r.Body);
@@ -181,7 +181,7 @@ func (ur *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(bodyBytes, &userDTO)
 	userID, _ := strconv.ParseInt(vars["id"], 10, 0)
 	userDTO.ID = uint(userID)
-	if err := ur.userService.Delete(userDTO); err != nil {
+	if err := controller.userService.Delete(userDTO); err != nil {
 		misc.JSONWrite(w,misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -189,7 +189,7 @@ func (ur *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login authentificate the user by checking and giving the token
-func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
+func (controller *UserController) Login(w http.ResponseWriter, r *http.Request) {
 	u := new(models.User)
 
 	bodyBytes, err := ioutil.ReadAll(r.Body);
@@ -204,14 +204,14 @@ func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = ur.userService.CheckUser(u.Login, u.Password)
+	err = controller.userService.CheckUser(u.Login, u.Password)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusNotFound)
 		return
 	}
 
-	user, err := ur.userService.FindByLogin(u.Login)
-	role, err := ur.roleService.FindByUserID(user.ID)
+	user, err := controller.userService.FindByLogin(u.Login)
+	role, err := controller.roleService.FindByUserID(user.ID)
 	token, err := auth.CreateToken(user.ID, role)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
@@ -226,7 +226,7 @@ func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Register registers the node
-func (ur *UserController) Register(w http.ResponseWriter, r *http.Request) {
+func (controller *UserController) Register(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -238,7 +238,7 @@ func (ur *UserController) Register(w http.ResponseWriter, r *http.Request) {
 
 	_ = json.Unmarshal(bodyBytes, &newUser)
 
-	err = ur.userService.Create(newUser)
+	err = controller.userService.Create(newUser)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 		return
@@ -249,7 +249,7 @@ func (ur *UserController) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout ...
-func (ur *UserController) Logout(w http.ResponseWriter, r *http.Request) {
+func (controller *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 	_, err := auth.ExtractTokenData(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -262,7 +262,7 @@ func (ur *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 
 // Refresh ... 
 func Refresh(w http.ResponseWriter, r *http.Request) {
-	tokens := map[string]string{}
+	tokens := make(map[string]string, 0)
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 
@@ -279,7 +279,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	refreshToken := tokens["refresh_token"]
 
 	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
-		//Make sure that the token method conform to "SigningMethodHMAC"
+		
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 		   return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}

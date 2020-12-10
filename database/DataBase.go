@@ -1,13 +1,11 @@
 package database
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/configs"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
 	"gorm.io/driver/postgres"
@@ -18,9 +16,7 @@ import (
 // DataBase ...
 type DataBase struct {
 	config *configs.Database
-	Ctx context.Context
 	Pdb *gorm.DB
-	Rdb *redis.Client
 }
 
 
@@ -34,7 +30,6 @@ func (DB *DataBase) OpenDataBase(conf *configs.Database) error {
 	var err error
 
 	DB.config = conf
-	DB.Ctx = context.Background()
 	dsn := fmt.Sprintf("port=%s %s", DB.config.Port, DB.config.DBURL)
 	newLogger := logger.New(
 		log.New(os.Stdout, "\n", log.LstdFlags),logger.Config{
@@ -52,12 +47,6 @@ func (DB *DataBase) OpenDataBase(conf *configs.Database) error {
 		return err
 	}
 
-	DB.Rdb = redis.NewClient(&redis.Options{
-		Addr: "localhost:5054",
-		Password: "",
-		DB: 0,
-	})
-	
 	return nil
 }
 

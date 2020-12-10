@@ -17,10 +17,10 @@ type RoleService struct {
 }
 
 // FindByUserID ...
-func (rs *RoleService) FindByUserID(userID uint) (string, error) {
+func (service *RoleService) FindByUserID(userID uint) (string, error) {
 	userRole := new(models.Role)
 	userRole.UserID = userID
-	userRole, err := rs.RoleRepository.Read(userRole)
+	userRole, err := service.RoleRepository.Read(userRole)
 
 	if err != nil {
 		return "", err
@@ -30,7 +30,7 @@ func (rs *RoleService) FindByUserID(userID uint) (string, error) {
 }
 
 // SetUserRole ... 
-func (rs *RoleService) SetUserRole(userID uint, role string) error {
+func (service *RoleService) SetUserRole(userID uint, role string) error {
 	if role == "" {
 		return nil
 	}
@@ -38,7 +38,7 @@ func (rs *RoleService) SetUserRole(userID uint, role string) error {
 	userRole.UserID = userID
 	userRole.Role = role
 	
-	err := rs.RoleRepository.Update(userRole)
+	err := service.RoleRepository.Update(userRole)
 	if err != nil {
 		return nil
 	}

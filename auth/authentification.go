@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 
-	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
 )
 
 // TokenDetails structure with info about access and refresh tokens
@@ -35,7 +33,7 @@ type AccessToken struct {
 func CreateToken(id uint, role string) (*TokenDetails, error) {
 	token := &TokenDetails{}
 	var err error
-	token.AExp = time.Now().Add(time.Minute * 15).Unix()
+	token.AExp = time.Now().Add(time.Minute * 1).Unix()
 	token.AUuid = uuid.New().String()
 	token.RExp = time.Now().Add(time.Hour * 24).Unix()
 	token.RUuid = uuid.New().String()
@@ -72,22 +70,22 @@ func CreateToken(id uint, role string) (*TokenDetails, error) {
 }
 
 //CreateAuth creates a valid token in cached db
-func CreateAuth(db *database.DataBase, id uint, token *TokenDetails) error {
-	rt := time.Unix(token.RExp, 0)
-	at := time.Unix(token.AExp, 0)
+// func CreateAuth(db *database.DataBase, id uint, token *TokenDetails) error {
+// 	rt := time.Unix(token.RExp, 0)
+// 	at := time.Unix(token.AExp, 0)
 
-	err := db.Rdb.Set(db.Ctx, token.AUuid, strconv.Itoa(int(id)), at.Sub(time.Now())).Err()
-	if err != nil {
-		return err
-	}
+// 	err := db.Rdb.Set(db.Ctx, token.AUuid, strconv.Itoa(int(id)), at.Sub(time.Now())).Err()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	err = db.Rdb.Set(db.Ctx, token.RUuid, strconv.Itoa(int(id)), rt.Sub(time.Now())).Err()
-	if err != nil {
-		return err
-	}
+// 	err = db.Rdb.Set(db.Ctx, token.RUuid, strconv.Itoa(int(id)), rt.Sub(time.Now())).Err()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 
 // ExtractToken ...
@@ -163,22 +161,22 @@ func ExtractTokenData(r *http.Request) (*AccessToken, error) {
 }
 
 // CheckAuth ...
-func CheckAuth(db *database.DataBase, authD *AccessToken) (int, error) {
-	userID, err := db.Rdb.Get(db.Ctx, authD.AUuid).Result()
-	if err != nil {
-		return -1, nil
-	}
+// func CheckAuth(db *database.DataBase, authD *AccessToken) (int, error) {
+// 	userID, err := db.Rdb.Get(db.Ctx, authD.AUuid).Result()
+// 	if err != nil {
+// 		return -1, nil
+// 	}
 
-	userIDint, _ := strconv.ParseInt(userID, 10, 0)
-	return int(userIDint), nil
-}
+// 	userIDint, _ := strconv.ParseInt(userID, 10, 0)
+// 	return int(userIDint), nil
+// }
 
 
 // DeleteAuth ...
-func DeleteAuth(db *database.DataBase, uuid string) (int64, error) {
-	deleted, err := db.Rdb.Del(db.Ctx, uuid).Result()
-	if err != nil {
-		return -1, err
-	}
-	return deleted, nil
-}
+// func DeleteAuth(db *database.DataBase, uuid string) (int64, error) {
+// 	deleted, err := db.Rdb.Del(db.Ctx, uuid).Result()
+// 	if err != nil {
+// 		return -1, err
+// 	}
+// 	return deleted, nil
+// }

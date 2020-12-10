@@ -31,7 +31,7 @@ func NewTaskController(db *database.DataBase, rc *cache.RedisCache) *TaskControl
 }
 
 // Create handles the request and creates
-func (tr *TaskController) Create(w http.ResponseWriter, r *http.Request) {
+func (controller *TaskController) Create(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
@@ -45,16 +45,16 @@ func (tr *TaskController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = tr.taskService.Create(task); err != nil {
+	if err = controller.taskService.Create(task); err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	misc.JSONWrite(w, misc.WriteResponse(false, "Success"), http.StatusCreated)
+	misc.JSONWrite(w, misc.WriteResponse(false, "Task created"), http.StatusCreated)
 }
 
 // Read retrieves certain datas from DB
-func (tr *TaskController) Read(w http.ResponseWriter, r *http.Request) {
+func (controller *TaskController) Read(w http.ResponseWriter, r *http.Request) {
 	var tasks []*models.Task
 	var err error
 	vars := mux.Vars(r)
@@ -65,20 +65,20 @@ func (tr *TaskController) Read(w http.ResponseWriter, r *http.Request) {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 			return
 		}
-		task, err := tr.postCache.Get(userIDs) 
+		task, err := controller.postCache.Get(userIDs) 
 		if task == nil {
-			task, err = tr.taskService.FindByID(uint(userID))
+			task, err = controller.taskService.FindByID(uint(userID))
 
 			if err != nil {
 				misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 				return
 			}
-			tasks, err = tr.taskService.Read(task)
-			tr.postCache.Set(userIDs, task)
+			tasks, err = controller.taskService.Read(task)
+			controller.postCache.Set(userIDs, task)
 		}
 		
 	} else {
-		tasks, err = tr.taskService.Read(nil)
+		tasks, err = controller.taskService.Read(nil)
 	}
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
@@ -94,7 +94,7 @@ func (tr *TaskController) Read(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete deletes task from DB
-func (tr *TaskController) Delete(w http.ResponseWriter, r *http.Request) {
+func (controller *TaskController) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	err := fmt.Errorf("The id of task was not declared")
 	taskIDs, ok := vars["task_id"]
@@ -110,13 +110,13 @@ func (tr *TaskController) Delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		
-		task, err := tr.taskService.FindByID(uint(taskID))
+		task, err := controller.taskService.FindByID(uint(taskID))
 		if err != nil {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusOK)
 			return
 		}
 		if uint(userID) == task.UserID {
-			err = tr.taskService.Delete(task)
+			err = controller.taskService.Delete(task)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (tr *TaskController) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update updates the tasks parameters in DB
-func (tr *TaskController) Update(w http.ResponseWriter, r *http.Request) {
+func (controller *TaskController) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var err error
 	var task *models.Task
@@ -145,7 +145,7 @@ func (tr *TaskController) Update(w http.ResponseWriter, r *http.Request) {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 			return
 		}
-		task, err = tr.taskService.FindByID(uint(taskID))
+		task, err = controller.taskService.FindByID(uint(taskID))
 		if err != nil {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 			return
@@ -175,7 +175,7 @@ func (tr *TaskController) Update(w http.ResponseWriter, r *http.Request) {
 	task.ID = uint(taskID)
 	task.UserID = uint(userID)
 	
-	err = tr.taskService.Update(task)
+	err = controller.taskService.Update(task)
 
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
@@ -183,4 +183,22 @@ func (tr *TaskController) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	misc.JSONWrite(w, misc.WriteResponse(false, "Successfully updated"), http.StatusOK)
+}
+
+// GetByID ... 
+func (controller *TaskController) GetByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskID, err := strconv.ParseInt(vars["task_id"], 10, 0)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
+		return
+	}
+	task, err := controller.taskService.FindByID(uint(taskID))
+
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusNotFound)
+		return
+	}
+	
+	misc.JSONWrite(w, misc.WriteResponse(false, task), http.StatusFound)
 }

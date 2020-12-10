@@ -25,7 +25,6 @@ func IsAuthenticated(next http.Handler) http.Handler {
 					misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnauthorized)
 					return
 				}
-				// print(accessToken.Userid)
 				r = r.WithContext(context.WithValue(r.Context(), "userID", accessToken.Userid))
 				r = r.WithContext(context.WithValue(r.Context(), "role", accessToken.URole))
 				next.ServeHTTP(w, r)
