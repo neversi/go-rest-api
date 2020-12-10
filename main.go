@@ -23,7 +23,7 @@ func main() {
 
 	conf := configs.NewConfig()
 	toml.DecodeFile(configPath, &conf)
-
+	
 	api, err := server.New(conf)
 	if err != nil {
 		fmt.Println(err)

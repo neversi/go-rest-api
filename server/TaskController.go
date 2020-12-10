@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/cache"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/misc"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/models"
@@ -17,14 +18,15 @@ import (
 // TaskController handles the request of the user
 type TaskController struct {
 	taskService service.ITaskService
+	postCache cache.PostCache
 }
 
 // NewTaskController creates TaskController
-func NewTaskController(db *database.DataBase) *TaskController {
+func NewTaskController(db *database.DataBase, rc *cache.RedisCache) *TaskController {
 	return &TaskController{
 		taskService: &service.TaskService{
 			TaskRepository: database.NewTaskRepository(db),
-		},
+		}, postCache: rc,
 	}
 }
 
@@ -63,12 +65,17 @@ func (tr *TaskController) Read(w http.ResponseWriter, r *http.Request) {
 			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 			return
 		}
-		task, err := tr.taskService.FindByID(uint(userID))
-		if err != nil {
-			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
-			return
+		task, err := tr.postCache.Get(userIDs) 
+		if task == nil {
+			task, err = tr.taskService.FindByID(uint(userID))
+
+			if err != nil {
+				misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
+				return
+			}
+			tasks, err = tr.taskService.Read(task)
+			tr.postCache.Set(userIDs, task)
 		}
-		tasks, err = tr.taskService.Read(task)
 		
 	} else {
 		tasks, err = tr.taskService.Read(nil)

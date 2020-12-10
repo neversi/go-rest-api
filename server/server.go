@@ -3,8 +3,10 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
+	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/cache"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/configs"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/middleware"
@@ -21,10 +23,12 @@ type APIServer struct {
 func New(conf *configs.Server) (*APIServer, error) {
 	db := database.New()
 	db.OpenDataBase(conf.DB)
-
+	cacheHost := conf.Cache.Host + ":" + conf.Cache.Port
+	cache := cache.NewRedisCache(cacheHost, conf.Cache.DB, time.Duration(conf.Cache.ExpDuration))
+	
 	return &APIServer{
 		config: conf,
-		taskController: NewTaskController(db),
+		taskController: NewTaskController(db, cache),
 		userController: NewUserController(db),
 	}, nil
 }
@@ -38,6 +42,7 @@ func (api *APIServer) Start() error {
 	})
 	userRouter := router.PathPrefix("/users").Subrouter()
 	taskRouter := router.PathPrefix("/tasks").Subrouter()
+
 	router.HandleFunc("/login", api.userController.Login).Methods("POST")
 	router.HandleFunc("/register", api.userController.Create).Methods("POST")
 
@@ -55,8 +60,8 @@ func (api *APIServer) Start() error {
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Update).Methods("PUT")
 	router.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
 
-	// router.Use(middleware.JSONDataCheck)
-	// router.Use(middleware.LoggerHandler)
+	router.Use(middleware.JSONDataCheck)
+	router.Use(middleware.LoggerHandler)
 	userRouter.Use(middleware.IsAuthenticated)
 	userRouter.Use(middleware.AuthorizationUser)
 
