@@ -42,6 +42,11 @@ func (rp *RoleRepository) Read(r *models.Role) (*models.Role, error) {
 func (rp *RoleRepository) Update(r *models.Role) error {
 	currentDB := rp.db.Pdb
 	updatedR := new(models.Role)
+	
+	err := r.Validate() 
+	if err != nil {
+		return err
+	}
 	res := currentDB.Model(&models.Role{}).Where("user_id = ?", r.UserID).First(&updatedR)
 	if res.Error != nil {
 		return res.Error
