@@ -9,11 +9,11 @@ import (
 // User is the struct of user which will use the app itself
 type User struct {
 	ID	  uint	 "json:\"id\" gorm:\"primaryKey;type:uint\""
-	Login     string "json:\"login\" gorm:\"not null;unique\""
+	Login     string "json:\"login\" gorm:\"not null;unique; <-:create\""
 	Password  string "json:\"password\" gorm:\"not null\""
 	FirstName string "json:\"first_name\"" 
 	SurName   string "json:\"sur_name\""
-	Email     string "json:\"email\" gorm:\"not null;unique\""
+	Email     string "json:\"email\" gorm:\"not null;unique; <-:create\""
 }
 
 

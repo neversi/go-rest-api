@@ -26,12 +26,13 @@ type TokenDetails struct {
 
 // AccessToken ...
 type AccessToken struct {
+	URole string
 	AUuid string
 	Userid string
 }
 
 // CreateToken creates an access and refresh tokens
-func CreateToken(id uint) (*TokenDetails, error) {
+func CreateToken(id uint, role string) (*TokenDetails, error) {
 	token := &TokenDetails{}
 	var err error
 	token.AExp = time.Now().Add(time.Minute * 15).Unix()
@@ -44,6 +45,7 @@ func CreateToken(id uint) (*TokenDetails, error) {
 	AClaims := jwt.MapClaims{}
 
 	AClaims["authorized"] = true
+	AClaims["role"] = role
 	AClaims["a_id"] = token.AUuid
 	AClaims["id"] = id
 	AClaims["exp"] = token.AExp
@@ -57,6 +59,7 @@ func CreateToken(id uint) (*TokenDetails, error) {
 
 	RClaims := jwt.MapClaims{}
 	RClaims["authorized"] = true
+	RClaims["role"] = role
 	RClaims["r_id"] = token.RUuid
 	RClaims["id"] = id
 	RClaims["exp"] = token.RExp
@@ -159,8 +162,10 @@ func ExtractTokenData(r *http.Request) (*AccessToken, error) {
 		return nil, err
 	}
 
+	userRole := claims["role"].(string)
 	
 	return &AccessToken{
+		URole: userRole,
 		AUuid: strconv.Itoa(int(accessUUID)),
 		Userid: strconv.Itoa(int(userID)),
 	}, nil

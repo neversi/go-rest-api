@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/misc"
@@ -15,7 +16,8 @@ func AuthorizationUser(next http.Handler) http.Handler {
 			misc.JSONWrite(w, misc.WriteResponse(true, "Not authorized"), http.StatusUnauthorized)
 		}
 		vars := mux.Vars(r);
-		if userID != vars["id"] {
+	
+		if userID != vars["id"] && "user" == strings.ToLower(vars["role"]) {
 			misc.JSONWrite(w, misc.WriteResponse(true, "Not allowed"), http.StatusForbidden)
 			return
 		}

@@ -19,14 +19,15 @@ func IsAuthenticated(next http.Handler) http.Handler {
 			if err := auth.TokenValid(r); err != nil {
 				misc.JSONWrite(w, misc.WriteResponse(true, "Token is not valid"), http.StatusUnauthorized)
 			} else {
-				acessToken, err := auth.ExtractTokenData(r)
+				accessToken, err := auth.ExtractTokenData(r)
 				
 				if err != nil {
-					http.Error(w, "Problem with Token", http.StatusUnauthorized)
+					misc.JSONWrite(w, misc.WriteResponse(true, "Problem with Token"), http.StatusUnauthorized)
 					return
 				}
 				
-				r.WithContext(context.WithValue(r.Context(), String("userID"), acessToken.Userid))
+				r.WithContext(context.WithValue(r.Context(), String("userID"), accessToken.Userid))
+				r.WithContext(context.WithValue(r.Context(), String("role"), accessToken.URole))
 				next.ServeHTTP(w, r)
 				return
 			}

@@ -64,8 +64,7 @@ func (DB *DataBase) OpenDataBase(conf *configs.Database) error {
 // assertTables asserts that tables exist, otherwise creates them
 func (DB *DataBase) assertTables() error {
 	var err error
-	if err = DB.Pdb.AutoMigrate(&models.User{}, &models.Task{
-	}); err != nil {
+	if err = DB.Pdb.AutoMigrate(&models.User{}, &models.Task{}, &models.Role{}); err != nil {
 		return err
 	}
 	return nil 

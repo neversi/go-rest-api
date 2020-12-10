@@ -37,6 +37,10 @@ func (service *UserService) Create(usr *models.User) error {
 		return fmt.Errorf("Such user exists")
 	}
 
+	if err := user.Validate(); err != nil {
+		return err
+	}
+
 	service.UserRepository.Create(usr)
 	return nil
 }

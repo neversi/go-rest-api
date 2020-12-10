@@ -19,6 +19,7 @@ import (
 // UserController handles the request of the user
 type UserController struct {
 	userService service.IUserService
+	roleService service.IRoleService
 }
 
 
@@ -27,6 +28,9 @@ func NewUserController(db *database.DataBase) *UserController {
 	return &UserController{
 		userService: &service.UserService{
 			UserRepository: database.NewUserRepository(db),
+		},
+		roleService: &service.RoleService{
+			RoleRepository: database.NewRoleRepository(db),
 		},
 	}
 }
@@ -41,23 +45,45 @@ func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 	}
 
 	newUser := new(models.User)
+	newRole := new(models.Role)
 
-	_ = json.Unmarshal(bodyBytes, &newUser)
-
+	err = json.Unmarshal(bodyBytes, &newUser)
+	
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
+		return
+	}
+	
+	err = json.Unmarshal(bodyBytes, &newRole)
+	
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
+		return
+	}
+	
 	err = ur.userService.Create(newUser)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 		return
 	}
+
+	newUser, err = ur.userService.FindByLogin(newUser.Login)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	err = ur.roleService.SetUserRole(newUser.ID, newRole.Role)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		return
+	}
+	
 	misc.JSONWrite(w, misc.WriteResponse(false, "User created"), http.StatusCreated)
 }
 
 // UserRead responds with json format file where all users are written
 func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") != "application/json" {
-		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
-		return
-	}
 	isEmpty := true
 	
 	bodyBytes, err := json.Marshal(r.Body)
@@ -90,10 +116,7 @@ func (ur *UserController) Read(w http.ResponseWriter, r *http.Request) {
 
 // Update updates the info about user
 func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") != "application/json" {
-		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
-		return
-	}
+	
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
@@ -104,12 +127,19 @@ func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	
 
 	userDTO := new(database.UserDTO)
-	
+	newRole := new(models.Role)
+
 	err = json.Unmarshal(bodyBytes, &userDTO)
-	
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		misc.JSONWrite(w,misc.WriteResponse(true, err.Error()),http.StatusUnprocessableEntity)
+		return
+	}
+	
+	err = json.Unmarshal(bodyBytes, &newRole) 
+	
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
 		return
 	}
 	
@@ -120,16 +150,24 @@ func (ur *UserController) Update(w http.ResponseWriter, r *http.Request) {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
+
+	usr, err := ur.userService.FindByLogin(userDTO.Login)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	err = ur.roleService.SetUserRole(usr.ID, newRole.Role)
 	
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+		return
+	}
 	misc.JSONWrite(w, misc.WriteResponse(false, "Successfully updated"), http.StatusOK)
 }
 
 // Delete deletes the user account
 func (ur *UserController) Delete(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") != "application/json" {
-		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
-		return
-	}
 	vars := mux.Vars(r)
 	userDTO := new(database.UserDTO)
 	bodyBytes, err := ioutil.ReadAll(r.Body);
@@ -149,10 +187,6 @@ func (ur *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Login authentificate the user by checking and giving the token
 func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") != "application/json" {
-		misc.JSONWrite(w, misc.WriteResponse(true, "Unsupported Media Type: need application/json"), http.StatusUnsupportedMediaType)
-		return
-	}
 	u := new(models.User)
 
 	bodyBytes, err := ioutil.ReadAll(r.Body);
@@ -173,9 +207,9 @@ func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := ur.userService.FindByLogin(u.Login);
-
-	token, err := auth.CreateToken(user.ID)
+	user, err := ur.userService.FindByLogin(u.Login)
+	role, err := ur.roleService.FindByUserID(user.ID)
+	token, err := auth.CreateToken(user.ID, role)
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 			http.Error(w, "Not Authorized", http.StatusUnauthorized)
@@ -190,7 +224,22 @@ func (ur *UserController) Login(w http.ResponseWriter, r *http.Request) {
 
 // Register registers the node
 func (ur *UserController) Register(w http.ResponseWriter, r *http.Request) {
-	ur.Create(w, r)
+
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	newUser := new(models.User)
+
+	_ = json.Unmarshal(bodyBytes, &newUser)
+
+	err = ur.userService.Create(newUser)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
+		return
+	}
 	http.Redirect(w, r, "/login", http.StatusPermanentRedirect)
 	return
 
@@ -246,16 +295,18 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 
 	mapClaims, ok := token.Claims.(jwt.MapClaims); 
 	if ok && token.Valid {
-		// refreshUUID, ok := mapClaims["r_id"].(string)
-		// if !ok {
-		// 	w.WriteHeader(http.StatusExpectationFailed)
-		// }
+		_, ok := mapClaims["r_id"].(string)
+		if !ok {
+			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusExpectationFailed)
+			return
+		}
 
 		userID := mapClaims["id"].(string)
 		userIDInt, _ := strconv.Atoi(userID)
-		refreshedTokens, err := auth.CreateToken(uint(userIDInt))
+		refreshedTokens, err := auth.CreateToken(uint(userIDInt), mapClaims["role"].(string))
 		if err != nil {
-			w.WriteHeader(http.StatusExpectationFailed)
+			misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
+			return
 		}
 
 		tokens := map[string]string{
@@ -266,5 +317,6 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	w.WriteHeader(http.StatusUnauthorized)	
+	misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnauthorized)
+	return
 }

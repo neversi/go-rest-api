@@ -39,25 +39,24 @@ func (api *APIServer) Start() error {
 	userRouter := router.PathPrefix("/users").Subrouter()
 	taskRouter := router.PathPrefix("/tasks").Subrouter()
 	router.HandleFunc("/login", api.userController.Login).Methods("POST")
-	router.HandleFunc("/register", api.userController.Register).Methods("POST")
+	router.HandleFunc("/register", api.userController.Create).Methods("POST")
 
 	router.HandleFunc("/users", api.userController.Read).Methods("GET")
 	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
 	router.HandleFunc("/users", api.userController.Create).Methods("POST")
-	userRouter.HandleFunc("/{id}", api.userController.Delete).Methods("DELETE")
-	userRouter.HandleFunc("/{id}", api.userController.Update).Methods("PUT")
+	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Delete).Methods("DELETE")
+	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Update).Methods("PUT")
 	
 
 	
 	// router.HandleFunc("/refresh", api.userController.Refresh).Methods("GET")
-	userRouter.HandleFunc("/{id}/tasks",api.taskController.Read).Methods("GET")
-	userRouter.HandleFunc("/{id}/tasks/{task_id}", api.taskController.Delete).Methods("DELETE")
-	userRouter.HandleFunc("/{id}/tasks/{task_id}", api.taskController.Update).Methods("PUT")
+	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Read).Methods("GET")
+	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Delete).Methods("DELETE")
+	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Update).Methods("PUT")
 	router.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
 
-	router.Use(middleware.LoggerHandler)
-	router.Use(middleware.JSONDataCheck)
-
+	// router.Use(middleware.JSONDataCheck)
+	// router.Use(middleware.LoggerHandler)
 	userRouter.Use(middleware.IsAuthenticated)
 	userRouter.Use(middleware.AuthorizationUser)
 

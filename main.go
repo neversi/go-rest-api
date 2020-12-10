@@ -30,6 +30,8 @@ func main() {
 		return
 	}
 
-	api.Start()
+	if err := api.Start(); err != nil {
+		fmt.Println(err)
+	}
 
 }

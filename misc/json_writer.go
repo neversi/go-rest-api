@@ -16,7 +16,7 @@ func WriteResponse(isError bool, message interface{}) map[string]interface{} {
 // JSONWrite writes to "response body" info given by "data"
 func JSONWrite(w http.ResponseWriter, data interface{}, status int) {
 	dataBytes, _ := json.Marshal(data);
+	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(dataBytes)
-	w.WriteHeader(status)
 }
