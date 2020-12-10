@@ -13,7 +13,7 @@ type Task struct {
 	Title    	string "json:\"title\" gorm:\"not null\""
 	Text     	string "json:\"text\" gorm:\"not null\""
 	Category 	string "json:\"category\" gorm:\"not null\""
-	Author   	string "json:\"author\" gorm:\"not null\""
+	Author   	string "json:\"author\" gorm:\"not null;<-:create\""
 	Status   	string "json:\"status\" gorm:\"default:in progress\""
 	Deadline 	string "json:\"date\""
 }

@@ -37,7 +37,7 @@ func (service *UserService) Create(usr *models.User) error {
 		return fmt.Errorf("Such user exists")
 	}
 
-	if err := user.Validate(); err != nil {
+	if err := usr.Validate(); err != nil {
 		return err
 	}
 
@@ -128,7 +128,7 @@ func (service *UserService) CheckUser(login string, password string) error {
 	if err != nil {
 		return err;
 	}
-	if user != nil {
+	if user == nil {
 		return fmt.Errorf("There is no such user");
 	}
 	exist, err := misc.CompareHash(user.Password, password);

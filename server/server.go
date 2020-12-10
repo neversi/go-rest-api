@@ -47,22 +47,22 @@ func (api *APIServer) Start() error {
 	router.HandleFunc("/register", api.userController.Create).Methods("POST")
 
 	router.HandleFunc("/users", api.userController.Read).Methods("GET")
-	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
 	router.HandleFunc("/users", api.userController.Create).Methods("POST")
 	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Delete).Methods("DELETE")
 	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Update).Methods("PUT")
 	
-
+	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
 	
 	// router.HandleFunc("/refresh", api.userController.Refresh).Methods("GET")
+	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Create).Methods("POST")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Read).Methods("GET")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Delete).Methods("DELETE")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Update).Methods("PUT")
 	router.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
 
-	router.Use(middleware.JSONDataCheck)
-	router.Use(middleware.LoggerHandler)
 	userRouter.Use(middleware.IsAuthenticated)
+	router.Use(middleware.JSONDataCheck)
+	// router.Use(middleware.LoggerHandler)
 	userRouter.Use(middleware.AuthorizationUser)
 
 	return http.ListenAndServe(fmt.Sprintf(":%s", api.config.Port), router)

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/BurntSushi/toml"
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/configs"
@@ -20,6 +21,7 @@ func init() {
 func main() {
 	flag.Parse()
 	fmt.Println("Hello lets start our server...")
+	os.Setenv("TokenPass", "abdr_go_to_env")
 
 	conf := configs.NewConfig()
 	toml.DecodeFile(configPath, &conf)

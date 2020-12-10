@@ -21,8 +21,8 @@ type User struct {
 func (u *User) Validate() error {
 	return validation.ValidateStruct(
 		u,
-		validation.Field(&u.Login, validation.Length(6, 30), is.Alpha),
-		validation.Field(&u.Password, validation.Length(8, 36), is.Alpha),
+		validation.Field(&u.Login, validation.Length(6, 30), is.Alphanumeric),
+		validation.Field(&u.Password, validation.Length(8, 36), is.Alphanumeric),
 		validation.Field(&u.FirstName, validation.Length(2, 40), is.Alpha),
 		validation.Field(&u.SurName, validation.Length(2, 40), is.Alpha),
 		validation.Field(&u.Email, is.EmailFormat),

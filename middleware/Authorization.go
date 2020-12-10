@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -11,13 +12,15 @@ import (
 // AuthorizationUser ...
 func AuthorizationUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func (w http.ResponseWriter,r *http.Request){
-		userID, ok := r.Context().Value(String("userID")).(string)
+		userID, ok := r.Context().Value("userID").(uint64)
+
+		role, ok := r.Context().Value("role").(string)
 		if ok == false {
-			misc.JSONWrite(w, misc.WriteResponse(true, "Not authorized"), http.StatusUnauthorized)
+			misc.JSONWrite(w, misc.WriteResponse(true, userID), http.StatusUnauthorized)
 		}
 		vars := mux.Vars(r);
-	
-		if userID != vars["id"] && "user" == strings.ToLower(vars["role"]) {
+		checkID, _ := strconv.ParseUint(vars["id"], 10, 0)
+		if userID != checkID && "user" == strings.ToLower(role)  {
 			misc.JSONWrite(w, misc.WriteResponse(true, "Not allowed"), http.StatusForbidden)
 			return
 		}

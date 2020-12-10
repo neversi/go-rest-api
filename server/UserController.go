@@ -55,6 +55,9 @@ func (ur *UserController) Create(w http.ResponseWriter, r *http.Request)  {
 	}
 	
 	err = json.Unmarshal(bodyBytes, &newRole)
+	if newRole.Role == "" {
+		newRole.Role = "user"
+	}
 	
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)

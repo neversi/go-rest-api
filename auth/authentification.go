@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +13,6 @@ import (
 
 	"gitlab.com/quybit/gexabyte/gexabyte_internship/go_abrd/database"
 )
-
 
 // TokenDetails structure with info about access and refresh tokens
 type TokenDetails struct {
@@ -28,7 +28,7 @@ type TokenDetails struct {
 type AccessToken struct {
 	URole string
 	AUuid string
-	Userid string
+	Userid uint64
 }
 
 // CreateToken creates an access and refresh tokens
@@ -40,7 +40,6 @@ func CreateToken(id uint, role string) (*TokenDetails, error) {
 	token.RExp = time.Now().Add(time.Hour * 24).Unix()
 	token.RUuid = uuid.New().String()
 
-	envSecret := "abdr_go_to_env"
 
 	AClaims := jwt.MapClaims{}
 
@@ -51,9 +50,8 @@ func CreateToken(id uint, role string) (*TokenDetails, error) {
 	AClaims["exp"] = token.AExp
 	atoken := jwt.NewWithClaims(jwt.SigningMethodHS256, AClaims)
 
-	token.AToken, err = atoken.SignedString([]byte(envSecret))
+	token.AToken, err = atoken.SignedString([]byte(os.Getenv("TokenPass")))
 	if err != nil {
-		err = fmt.Errorf("signing error")
 		return nil, err
 	}
 
@@ -65,9 +63,8 @@ func CreateToken(id uint, role string) (*TokenDetails, error) {
 	RClaims["exp"] = token.RExp
 	rtoken := jwt.NewWithClaims(jwt.SigningMethodHS256, RClaims)
 	
-	token.RToken, err = rtoken.SignedString([]byte(envSecret))
+	token.RToken, err = rtoken.SignedString([]byte(os.Getenv("TokenPass")))
 	if err != nil {
-		err = fmt.Errorf("signing error")
 		return nil, err
 	}
 
@@ -116,7 +113,7 @@ func VerifyToken(r *http.Request) (*jwt.Token, error) {
 
 		}
 
-		return []byte("abdr_go_to_env"), nil
+		return []byte(os.Getenv("TokenPass")), nil
 	})
 	if err != nil {
 		return nil, err
@@ -153,21 +150,15 @@ func ExtractTokenData(r *http.Request) (*AccessToken, error) {
 		return nil, fmt.Errorf("no claims")
 	}
 
-	userID, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["id"]), 10, 0)
-	if err != nil {
-		return nil, err
-	}
-	accessUUID, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["a_id"]), 10, 0)
-	if err != nil {
-		return nil, err
-	}
+	userID := claims["id"]
+	accessUUID := claims["a_id"].(string)
 
 	userRole := claims["role"].(string)
 	
 	return &AccessToken{
 		URole: userRole,
-		AUuid: strconv.Itoa(int(accessUUID)),
-		Userid: strconv.Itoa(int(userID)),
+		AUuid: accessUUID,
+		Userid: uint64(userID.(float64)),
 	}, nil
 }
 
