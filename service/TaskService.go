@@ -15,6 +15,7 @@ type ITaskService interface {
 	Read(t *models.Task) 	([]*models.Task, error) 
 	Update(t *models.Task) 	error 
 	Delete(t *models.Task) 	error
+	FindByUserID(id uint) 	([]*models.Task, error)
 	FindByID(id uint) 	(*models.Task, error)
 }
 
@@ -48,7 +49,7 @@ func (service *TaskService) Read(t *models.Task) ([]*models.Task, error) {
 
 // Update ...
 func (service *TaskService) Update(t *models.Task) error {
-	task, err := service.FindByID(t.ID);
+	task, err := service.FindByUserID(t.ID);
 
 	if err != nil {
 		return err
@@ -88,6 +89,19 @@ func (service *TaskService) Delete(t *models.Task) error {
 
 
 
+// FindByUserID ...
+func (service *TaskService) FindByUserID(id uint) ([]*models.Task, error) {
+	task := new(models.Task)
+	task.UserID = id
+	tasks, err := service.TaskRepository.Read(task)
+
+	if err != nil {
+		return nil, err
+	}
+	
+	return tasks, nil
+}
+
 // FindByID ...
 func (service *TaskService) FindByID(id uint) (*models.Task, error) {
 	task := new(models.Task)
@@ -97,10 +111,9 @@ func (service *TaskService) FindByID(id uint) (*models.Task, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return tasks[0], nil
 }
-
 
 
 

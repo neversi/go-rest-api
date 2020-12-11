@@ -36,7 +36,7 @@ func (rc *RedisCache) getClient() *redis.Client {
 }
 
 // Set ...
-func (rc *RedisCache) Set(key string, value *models.Task) error {
+func (rc *RedisCache) Set(key string, value []*models.Task) error {
 	client := rc.getClient()
 
 	_, err := json.Marshal(value)
@@ -49,14 +49,14 @@ func (rc *RedisCache) Set(key string, value *models.Task) error {
 }
 
 // Get ...
-func (rc *RedisCache) Get(key string) (*models.Task,error) {
+func (rc *RedisCache) Get(key string) ([]*models.Task,error) {
 	client := rc.getClient()
 	
 	str, err := client.Get(rc.ctx, key).Result()
 	if err != nil {
 		return nil, err
 	}
-	task := new(models.Task)
+	task := make([]*models.Task, 0)
 
 	err = json.Unmarshal([]byte(str), &task)
 	if err != nil {

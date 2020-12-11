@@ -185,7 +185,7 @@ func (controller *UserController) Delete(w http.ResponseWriter, r *http.Request)
 		misc.JSONWrite(w,misc.WriteResponse(true, err.Error()), http.StatusInternalServerError)
 		return
 	}
-	misc.JSONWrite(w, misc.WriteResponse(false, "Success"), 204)
+	misc.JSONWrite(w, misc.WriteResponse(false, "User deleted"), http.StatusOK)
 }
 
 // Login authentificate the user by checking and giving the token

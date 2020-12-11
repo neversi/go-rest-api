@@ -67,14 +67,14 @@ func (controller *TaskController) Read(w http.ResponseWriter, r *http.Request) {
 		}
 		task, err := controller.postCache.Get(userIDs) 
 		if task == nil {
-			task, err = controller.taskService.FindByID(uint(userID))
-
+			tasks, err = controller.taskService.FindByUserID(uint(userID))
+			
 			if err != nil {
 				misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusBadRequest)
 				return
 			}
-			tasks, err = controller.taskService.Read(task)
-			controller.postCache.Set(userIDs, task)
+
+			controller.postCache.Set(userIDs, tasks)
 		}
 		
 	} else {
@@ -197,6 +197,15 @@ func (controller *TaskController) GetByID(w http.ResponseWriter, r *http.Request
 
 	if err != nil {
 		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusNotFound)
+		return
+	}
+	userID, err := strconv.ParseInt(vars["id"], 10, 0)
+	if err != nil {
+		misc.JSONWrite(w, misc.WriteResponse(true, err.Error()), http.StatusUnprocessableEntity)
+		return
+	}
+	if task.UserID != uint(userID) {
+		misc.JSONWrite(w, misc.WriteResponse(true, "Not allowed"), http.StatusForbidden)
 		return
 	}
 	

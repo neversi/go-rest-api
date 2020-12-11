@@ -14,21 +14,19 @@ Docker/Docker-compose
 
 Approximated plan for the realization of the project
 
-```bash
-1. Authentification part
-```
+### 1. Authentification part
 For the Authentification the tokenized system was selected, JWT system and Redis cache will be used. 
 
-For Authentification part the next packages are used: 
+### For Authentification part the next packages are used: 
 ```bash
 github.com/dgrijalva/jwt-go     // For tokenization
-github.com/go-redis/redis/v7    // For Redis 
+github.com/go-redis/redis/v8    // For Redis 
 github.com/twinj/uuid           // For uniqueIDs
 os                              // For environ
 ```
 
-2. Modules and DB // Will be soon
-3. Roles and Methods // Will be soon
+### 2. Modules and DB // Will be soon
+### 3. Roles and Methods // Will be soon
 ```
 
 ## END

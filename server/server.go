@@ -15,7 +15,7 @@ import (
 // APIServer is server which will have all flows and so on
 type APIServer struct {
 	config 	       *configs.Server
-	userController *UserController 		// User
+	userController *UserController 		
 	taskController *TaskController 
 }
 
@@ -25,7 +25,7 @@ func New(conf *configs.Server) (*APIServer, error) {
 	db.OpenDataBase(conf.DB)
 	cacheHost := conf.Cache.Host + ":" + conf.Cache.Port
 	cache := cache.NewRedisCache(cacheHost, conf.Cache.DB, time.Duration(conf.Cache.ExpDuration))
-	
+	fmt.Print()
 	return &APIServer{
 		config: conf,
 		taskController: NewTaskController(db, cache),
@@ -40,33 +40,39 @@ func (api *APIServer) Start() error {
 		w.Write([]byte("Hello World!"))
 		w.WriteHeader(http.StatusOK)
 	})
-	userRouter := router.PathPrefix("/users").Subrouter()
-	taskRouter := router.PathPrefix("/tasks").Subrouter()
 
-	router.HandleFunc("/login", api.userController.Login).Methods("POST")
-	router.HandleFunc("/register", api.userController.Create).Methods("POST")
+	userRouter := router.PathPrefix("v1/users").Subrouter()
+	taskRouter := router.PathPrefix("v1/tasks").Subrouter()
+	adminRouter := router.PathPrefix("v1/admin").Subrouter()
 
-	router.HandleFunc("/users", api.userController.Read).Methods("GET")
-	router.HandleFunc("/users", api.userController.Create).Methods("POST")
+	router.HandleFunc("/v1/login", api.userController.Login).Methods("POST")
+	router.HandleFunc("/v1/register", api.userController.Create).Methods("POST")
+	router.HandleFunc("/v1/refresh", Refresh).Methods("GET")
+
+	adminRouter.HandleFunc("/users", api.userController.Read).Methods("GET")
+	adminRouter.HandleFunc("/users", api.userController.Create).Methods("POST")
+	adminRouter.HandleFunc("/users/{id:[0-9]+}", api.userController.Delete).Methods("DELETE")
+	adminRouter.HandleFunc("/users/{id:[0-9]+}", api.userController.Update).Methods("PUT")
+	adminRouter.HandleFunc("/tasks/{task_id:[0-9]+}", api.taskController.Delete).Methods("DELETE")
+	adminRouter.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
+
 	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Delete).Methods("DELETE")
-	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Update).Methods("PUT")
-	
-	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
-	
-	router.HandleFunc("/refresh", Refresh).Methods("GET")
+	userRouter.HandleFunc("/{id:[0-9]+}", api.userController.Update).Methods("PUT", "POST")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Create).Methods("POST")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks",api.taskController.Read).Methods("GET")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Delete).Methods("DELETE")
-	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Update).Methods("PUT")
+	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.Update).Methods("PUT", "POST")
 	userRouter.HandleFunc("/{id:[0-9]+}/tasks/{task_id:[0-9]+}", api.taskController.GetByID).Methods("GET")
-	router.HandleFunc("/tasks", api.taskController.Read).Methods("GET")
+	
+	taskRouter.HandleFunc("/", api.taskController.Create).Methods("POST")
+	
+	
+	router.Use(middleware.JSONDataCheck)
+	router.Use(middleware.LoggerHandler)
 
 	userRouter.Use(middleware.IsAuthenticated)
-	router.Use(middleware.JSONDataCheck)
-	// router.Use(middleware.LoggerHandler)
 	userRouter.Use(middleware.AuthorizationUser)
 
 	return http.ListenAndServe(fmt.Sprintf(":%s", api.config.Port), router)
+	
 }
-
-

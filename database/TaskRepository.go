@@ -34,8 +34,10 @@ func (tr *TaskRepository) Read(t *models.Task) ([]*models.Task, error) {
 	var result *gorm.DB
 	if (t == nil) {
 		result = currentDB.Table("tasks").Select("*").Find(&tasks)
-	} else {
+	} else if t.UserID != 0 {
 		result = currentDB.Model(&models.Task{}).Where("user_id = ?", t.UserID).Find(&tasks)
+	} else {
+		result = currentDB.Model(&models.Task{}).Where("id = ?", t.ID).Find(&tasks)
 	}
 	if result.Error != nil && len(tasks) != 0 {
 		return nil, result.Error
