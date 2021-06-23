@@ -1,5 +1,5 @@
 # go-rest-api
-REST api in golang (again)
+REST api in golang (Nov. 2020)
 
 ## Stack
 ```bash
@@ -10,12 +10,10 @@ Ngingx
 Docker/Docker-compose
 ```
 
-## Plan
-
 Approximated plan for the realization of the project
 
 ### 1. Authentification part
-For the Authentification the tokenized system was selected, JWT system and Redis cache will be used. 
+For the Authentification the tokenized system was selected, JWT system and Redis cache is used. 
 
 ### For Authentification part the next packages are used: 
 ```bash

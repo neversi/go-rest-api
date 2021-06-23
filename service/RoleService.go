@@ -8,7 +8,7 @@ import (
 // IRoleService ...
 type IRoleService interface {
 	FindByUserID(userID uint) (string, error)
-		SetUserRole(userID uint, role string) error 
+	SetUserRole(userID uint, role string) error 
 }
 
 // RoleService ...
